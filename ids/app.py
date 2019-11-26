@@ -1,20 +1,17 @@
 
 from flask import Flask, render_template, request, session, jsonify
 import urllib.request
-from pusher import Pusher
 from datetime import datetime
 import httpagentparser
 import json
 import os
 import hashlib
-from dbsetup import create_connection, create_session, update_or_create_page, select_all_sessions, select_all_user_visits, select_all_pages
+from database import create_connection, update_or_create_page, create_session, select_all_user_visits, select_all_sessions
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-pusher = Pusher(app_id=u'PUSHER_APP_ID', key=u'PUSHER_APP_KEY', secret=u'PUSHER_APP_SECRER', cluster=u'PUSHER_APP_CLUSTER')
-
-database = "./pythonsqlite.db"
+database = "./detector.db"
 conn = create_connection(database)
 c = conn.cursor()
 
@@ -31,16 +28,7 @@ def main():
     
 def parseVisitor(data):
     update_or_create_page(c,data)
-    pusher.trigger(u'pageview', u'new', {
-        u'page': data[0],
-        u'session': sessionID,
-        u'ip': userIP
-    })
-    pusher.trigger(u'numbers', u'update', {
-        u'page': data[0],
-        u'session': sessionID,
-        u'ip': userIP
-    })
+    
 
 @app.before_request
 def getAnalyticsData():
@@ -68,16 +56,6 @@ def getSession():
         lines = (str(time)+userIP).encode('utf-8')
         session['user'] = hashlib.md5(lines).hexdigest()
         sessionID = session['user']
-        pusher.trigger(u'session', u'new', {
-            u'ip': userIP,
-            u'continent': userContinent,
-            u'country': userCountry,
-            u'city': userCity,
-            u'os': userOS,
-            u'browser': userBrowser,
-            u'session': sessionID,
-            u'time': str(time),
-        })
         data = [userIP, userContinent, userCountry, userCity, userOS, userBrowser, sessionID, time]
         create_session(c,data)
     else:

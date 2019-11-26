@@ -37,11 +37,33 @@ def update_pages(c, pageId):
               WHERE id = ?'''
     c.execute(sql, [pageId])
     
+def create_session(c, data):
+    sql = ''' INSERT INTO sessions(ip, continent, country, city, os, browser, session, created_at)
+              VALUES (?,?,?,?,?,?,?,?) '''
+    c.execute(sql, data)
+    
+def select_all_sessions(c):
+    sql = "SELECT * FROM sessions"
+    c.execute(sql)
+    rows = c.fetchall()
+    return rows
+    
+def select_all_pages(c):
+    sql = "SELECT * FROM pages"
+    c.execute(sql)
+    rows = c.fetchall()
+    return rows
+    
+def select_all_user_visits(c, session_id):
+    sql = "SELECT * FROM pages where session =?"
+    c.execute(sql,[session_id])
+    rows = c.fetchall()
+    return rows
+    
 def create_packet(c, data):
-    sql = ''' INSERT INTO packet(TTL,DestinationAddr,Protocol,TotalLength,
+    sql = ''' INSERT INTO packets(TTL,DestinationAddr,Protocol,TotalLength,
             SourceAddr,EthernetProtocol,EthernetSrcAddr,EthernetDstAddr,FrameLength,
-            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort,
-            Flags)
+            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags)
               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
     c.execute(sql, data)
     
@@ -58,21 +80,21 @@ def select_all_packets_in_range(c, arrivaltime):
     return rows
     
 def select_dos_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packet where PacketId 
+    sql = """SELECT * from packets where PacketId 
     in ( Select Packet from ReportsOn where Sensor in ( select Sensor from dos where id = ?))"""
     c.execute(sql,[sensor_id])
     rows = c.fetchall()
     return rows
 
 def select_dictionary_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packet where PacketId 
+    sql = """SELECT * from packets where PacketId 
     in ( Select Packet from ReportsOn where Sensor in ( select Sensor from dictionaryattack where id = ?))"""
     c.execute(sql,[sensor_id])
     rows = c.fetchall()
     return rows
 
 def select_botnet_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packet where PacketId 
+    sql = """SELECT * from packets where PacketId 
     in ( Select Packet from ReportsOn where Sensor in ( select Sensor from botnet where id = ?))"""
     c.execute(sql,[sensor_id])
     rows = c.fetchall()
@@ -88,7 +110,7 @@ def main():
     database = "./detector.db"
     sql_create_packets = """ 
         CREATE TABLE IF NOT EXISTS packets (
-            PacketId AUTOINCREMENT NOT NULL PRIMARY KEY,
+            PacketId INTEGER PRIMARY KEY AUTOINCREMENT,
             TTL INTEGER NOT NULL,
             DestinationAddr VARCHAR(20) NOT NULL,
             Protocol VARCHAR(30) NOT NULL,
@@ -105,12 +127,12 @@ def main():
             Length INTEGER NOT NULL,
             DstPort INTEGER NOT NULL,
             SrcPort INTEGER NOT NULL,
-            Flags VARCHAR(20) NOT NULL 
+            Flags VARCHAR(20)  NOT NULL
         ); 
     """
     sql_create_network = """ 
         CREATE TABLE IF NOT EXISTS network (
-            NetworkId  AUTOINCREMENT NOT NULL PRIMARY KEY,
+            NetworkId INTEGER PRIMARY KEY AUTOINCREMENT,
             Name VARCHAR(50) NOT NULL ,
             CIDR VARCHAR(40) NOT NULL,
             Class VARCHAR(20)
@@ -119,7 +141,7 @@ def main():
 
     sql_create_sensor = """ 
         CREATE TABLE IF NOT EXISTS sensor (
-            SensorId  AUTOINCREMENT NOT NULL PRIMARY KEY,
+            SensorId INTEGER PRIMARY KEY AUTOINCREMENT,
             Name VARCHAR(30) NOT NULL,
             Version VARCHAR (30)
         ); 
@@ -173,7 +195,7 @@ def main():
 
     sql_create_response = """ 
         CREATE TABLE IF NOT EXISTS response (
-            ResponseCode  AUTOINCREMENT NOT NULL PRIMARY KEY,
+            ResponseCode INTEGER PRIMARY KEY AUTOINCREMENT,
             Sensor  INTEGER NOT NULL,
             Threshold INTEGER NOT NULL,
             TimeSpan  INTEGER NOT NULL,
