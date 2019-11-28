@@ -109,10 +109,10 @@ class Monitor(object):
         DstPort = pkt.tcp.dstport if 'tcp' in pkt else 0
         SrcPort = pkt.tcp.srcport if 'tcp' in pkt else 0
         Flags = self.get_flags(pkt)
-
+        RawData = str(pkt.get_raw_packet())
         data = [TTL, DestinationAddr, Protocol, TotalLength, SourceAddr, EthernetProtocol,
         EthernetSrcAddr, EthernetDstAddr, FrameLength, FrameType, FrameNumber, ArrivalTime,
-        InterfaceId, Length, DstPort, SrcPort, Flags ]
+        InterfaceId, Length, DstPort, SrcPort, Flags, RawData]
         create_packet(c,data)
 
 

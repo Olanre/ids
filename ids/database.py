@@ -63,8 +63,8 @@ def select_all_user_visits(c, session_id):
 def create_packet(c, data):
     sql = ''' INSERT INTO packets(TTL,DestinationAddr,Protocol,TotalLength,
             SourceAddr,EthernetProtocol,EthernetSrcAddr,EthernetDstAddr,FrameLength,
-            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags, RawData)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
     c.execute(sql, data)
     
 def select_all_packets(c):
@@ -127,7 +127,8 @@ def main():
             Length INTEGER NOT NULL,
             DstPort INTEGER NOT NULL,
             SrcPort INTEGER NOT NULL,
-            Flags VARCHAR(20)  NOT NULL
+            Flags VARCHAR(20)  NOT NULL,
+            RawData TEXT NOT NULL
         ); 
     """
     sql_create_network = """ 
