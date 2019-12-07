@@ -73,32 +73,225 @@ def select_all_packets(c):
     rows = c.fetchall()
     return rows
 
-def select_all_packets_in_range(c, arrivaltime):
-    sql = "SELECT * FROM packets where ArrivalTime "
+############################################################################################################################################
+###################################  Getting Entropy By Source or Destination Address ######################################################
+############################################################################################################################################
+def select_source_address_bytes_in_time_range(c, starttime, endtime):
+    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SourceAddr "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_address_bytes_in_time_range(c, starttime, endtime):
+    sql = "SELECT DestinationAddr, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By DestinationAddr "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_source_address_bytes_in_id_range(c, startid, endid):
+    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By SourceAddr "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_address_bytes_in_id_range(c, startid, endid):
+    sql = "SELECT DestinationAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By DestinationAddr "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_source_address_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SourceAddr "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_address_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By DestinationAddr "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_source_address_packets_in_id_range(c, startid, endid):
+    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where PacketId >= ? and PacketId <= ? Group By SourceAddr "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_address_packets_in_id_range(c, startid, endid):
+    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where PacketId >= ? and PacketId <= ? Group By DestinationAddr "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+############################################################################################################################################
+#####################################  Getting Entropy By Source or Destination Port# ######################################################
+############################################################################################################################################
+def select_source_port_bytes_in_time_range(c, starttime, endtime):
+    sql = "SELECT SrcPort, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SrcPort "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_port_bytes_in_time_range(c, starttime, endtime):
+    sql = "SELECT DstPort, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By DstPort "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_source_port_bytes_in_id_range(c, startid, endid):
+    sql = "SELECT SrcPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By SrcPort "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_port_bytes_in_id_range(c, startid, endid):
+    sql = "SELECT DstPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By DstPort "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_source_port_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT SrcPort, Count(SrcPort) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SrcPort "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_port_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT DstPort, Count(DstPort) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By DstPort "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_source_port_packets_in_id_range(c, startid, endid):
+    sql = "SELECT SrcPort, Count(SrcPort) as Count from packets where PacketId >= ? and PacketId <= ? Group By SrcPort "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_destination_port_packets_in_id_range(c, startid, endid):
+    sql = "SELECT DstPort, Count(DstPort) as Count from packets where PacketId >= ? and PacketId <= ? Group By DstPort "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+############################################################################################################################################
+###################################################  Getting Packets By Selector ###########################################################
+############################################################################################################################################
+def select_all_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT * FROM packets where ArrivalTime >= ? and ArrivalTime <= ? "
+    c.execute(sql, [starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_all_packets_in_id_range(c, startid, endid):
+    sql = "SELECT * FROM packets where PacketId >= ? and PacketId <= ? "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
+def select_profile_packets_by_id(c, profile_id):
+    sql = """SELECT * from packets where PacketId 
+    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler5Minute where id = ?))"""
+    c.execute(sql,[profile_id])
+    rows = c.fetchall()
+    return rows
+
+#Most Recent
+def select_latest_packet(c):
+    sql = "SELECT * FROM packets order By PacketId Desc limit 1 "
     c.execute(sql)
+    rows = c.fetchone()[0]
+    return rows
+
+############################################################################################################################################
+###################################################  Getting Entropies By Selector ###########################################################
+############################################################################################################################################
+#By Sensor
+def select_address_entropy_by_sensor(c, sensorId):
+    sql = "SELECT * FROM addressEntropy where Sensor = ?  "
+    c.execute(sql, [sensorId])
     rows = c.fetchall()
     return rows
     
-def select_dos_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from dos where id = ?))"""
-    c.execute(sql,[sensor_id])
+def select_port_entropy_by_sensor(c, sensorId):
+    sql = "SELECT * FROM portEntropy where Sensor = ?  "
+    c.execute(sql, [sensorId])
     rows = c.fetchall()
     return rows
 
-def select_dictionary_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from dictionaryattack where id = ?))"""
-    c.execute(sql,[sensor_id])
+def select_degree_entropy_by_sensor(c, sensorId):
+    sql = "SELECT * FROM degreeEntropy where Sensor = ?  "
+    c.execute(sql, [sensorId])
     rows = c.fetchall()
     return rows
 
-def select_botnet_packets_by_id(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from botnet where id = ?))"""
-    c.execute(sql,[sensor_id])
+#By Id
+def select_address_entropy_by_id(c, Id):
+    sql = "SELECT * FROM addressEntropy where  Id = ?  "
+    c.execute(sql, [Id])
     rows = c.fetchall()
     return rows
+
+def select_port_entropy_by_id(c, sensorId):
+    sql = "SELECT * FROM portEntropy where Id = ?  "
+    c.execute(sql, [Id])
+    rows = c.fetchall()
+    return rows
+
+def select_degree_entropy_by_id(c, sensorId):
+    sql = "SELECT * FROM degreeEntropy where Id = ?  "
+    c.execute(sql, [Id])
+    rows = c.fetchall()
+    return rows
+
+#Most Recent
+def select_latest_address_entropy(c):
+    sql = "SELECT * FROM addressEntropy order By Id Desc limit 1 "
+    c.execute(sql)
+    rows = c.fetchone()[0]
+    return rows
+
+def select_latest_port_entropy(c):
+    sql = "SELECT * FROM portEntropy order By Id Desc limit 1 "
+    c.execute(sql)
+    rows = c.fetchone()[0]
+    return rows
+
+def select_latest_degree_entropy(c):
+    sql = "SELECT * FROM degreeEntropy order By Id Desc limit 1 "
+    c.execute(sql)
+    rows = c.fetchone()[0]
+    return rows
+
+
+##################################  Getting Total Byes ##################################
+def select_total_bytes_in_time_range(c, starttime, endtime):
+    sql = "SELECT SUM(Length) as TotalBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_total_bytes_in_id_range(c, startid, endid):
+    sql = "SELECT SUM(Length) as TotalBytes FROM packets where PacketId >= ? and PacketId <= ? "
+    c.execute(sql,[startid, endid])
+    rows = c.fetchall()
+    return rows
+
+##################################  Getting Total Packets ##################################
+def select_total_packets_in_time_range(c, starttime, endtime):
+    sql = "SELECT Count(*) as TotalPackets from packets where ArrivalTime >= ? and ArrivalTime <= ? "
+    c.execute(sql,[starttime, endtime])
+    rows = c.fetchall()
+    return rows
+
+def select_total_packets_in_id_range(c, startid, endid):
+    sql = "SELECT Count(*) as TotalPackets FROM packets where PacketId >= ? and PacketId <= ? "
+    c.execute(sql,[startid, endid])
+    rows = c.fetchall()
+    return rows
+
+
     
 def select_sensor_responses(c, response_id):
     sql = "SELECT * FROM response where responsecode =?"
@@ -148,29 +341,26 @@ def main():
         ); 
     """
 
-    sql_create_dos = """ 
-        CREATE TABLE IF NOT EXISTS dos (
+    sql_create_Profiler1Minute = """ 
+        CREATE TABLE IF NOT EXISTS Profiler1Minute (
             Sensor INTEGER NOT NULL PRIMARY KEY,
-            PacketThreshold  INTEGER NOT NULL,
-            TimeFrameThreshold INTEGER NOT NULL,
+            EntropyThreshold  REAL NOT NULL,
             FOREIGN KEY(Sensor) REFERENCES sensor(SensorId)
         ); 
     """
 
-    sql_create_dictionaryattack = """ 
-        CREATE TABLE IF NOT EXISTS dictionaryattack (
+    sql_create_Profiler5Minute = """ 
+        CREATE TABLE IF NOT EXISTS Profiler5Minute (
             Sensor INTEGER NOT NULL PRIMARY KEY,
-            PasswordThreshold INTEGER NOT NULL,
-            TimeFrameThreshold INTEGER NOT NULL,
+            EntropyThreshold REAL NOT NULL,
             FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
         ); 
     """
 
-    sql_create_botnet = """ 
-        CREATE TABLE IF NOT EXISTS botnet (
+    sql_create_Profiler15Minute = """ 
+        CREATE TABLE IF NOT EXISTS Profiler15Minute (
             Sensor INTEGER NOT NULL PRIMARY KEY ,
-            GivenName VARCHAR(50) NOT NULL,
-            IpBlackList LONGTEXT NOT NULL,
+            EntropyThreshold REAL NOT NULL,
             FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
         ); 
     """
@@ -190,6 +380,55 @@ def main():
             Sensor  INTEGER NOT NULL,
             Packet  INTEGER NOT NULL,
             FOREIGN KEY(Packet) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    """
+
+    sql_create_addressEntropy = """ 
+        CREATE TABLE IF NOT EXISTS addressEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            SrcPacketScore  REAL NOT NULL,
+            DstPacketScore REAL NOT NULL,
+            SrcByteScore REAL NOT NULL,
+            DstByteScore REAL NOT NULL,            
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    """
+
+    sql_create_portEntropy = """ 
+        CREATE TABLE IF NOT EXISTS portEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            SrcPacketScore  REAL NOT NULL,
+            DstPacketScore REAL NOT NULL,
+            SrcByteScore REAL NOT NULL,
+            DstByteScore REAL NOT NULL,
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    """
+
+    sql_create_degreeEntropy = """ 
+        CREATE TABLE IF NOT EXISTS degreeEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            inDegreeScore  REAL NOT NULL,
+            outDegreeScore REAL NOT NULL,           
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
             FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
         ); 
     """
@@ -214,15 +453,6 @@ def main():
         ); 
     """
 
-    sql_create_report = """ 
-        CREATE TABLE IF NOT EXISTS report (
-            Response INTEGER NOT NULL PRIMARY KEY,
-            Name   VARCHAR(50) NOT NULL,
-            Format VARCHAR(50) NOT NULL,
-            FOREIGN KEY(Response) REFERENCES Response(ResponseCode)
-        ); 
-    """
-
     sql_create_email = """ 
         CREATE TABLE IF NOT EXISTS email (
             Response INTEGER NOT NULL PRIMARY KEY,
@@ -238,15 +468,18 @@ def main():
         # create tables
         create_table(conn, sql_create_packets)
         create_table(conn, sql_create_network)
-        create_table(conn, sql_create_dos)
-        create_table(conn, sql_create_dictionaryattack)
-        create_table(conn, sql_create_botnet)
+        create_table(conn, sql_create_Profiler1Minute)
+        create_table(conn, sql_create_Profiler5Minute)
+        create_table(conn, sql_create_Profiler15Minute)
         create_table(conn, sql_create_residesin)
         create_table(conn, sql_create_reportson)
         create_table(conn, sql_create_response)
         create_table(conn, sql_create_notification)
-        create_table(conn, sql_create_report)
         create_table(conn, sql_create_email)
+        create_table(conn, sql_create_addressEntropy)
+        create_table(conn, sql_create_portEntropy)
+        create_table(conn, sql_create_degreeEntropy)
+
         print("Connection established!")
     else:
         print("Could not establish connection")
