@@ -336,7 +336,7 @@ class Sensor(object):
         for packet_id_row in all_packets_ids:
             entry = (self.sensorId, packet_id_row["PacketId"])
             bulk_insert.append(entry)
-        self.logger.debug("Building bulk import for data of length: {}".format(bulk_insert))
+        self.logger.debug("Building bulk import for data of length: {}".format(len(bulk_insert)))
         database.create_bulk_alert_entry(c, bulk_insert)
 
     #generate a new response for the current time
