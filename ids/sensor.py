@@ -46,13 +46,33 @@ class Sensor(object):
         self.threshold = threshold
         global conn, c
 
+###################################################        Some Helper Functions            ###########################################################
+
     def IPinSubnet(self, ip, net):
         if IP(ip) in CIDR(net):
             return True
         else:
             return False
 
-###################################################  Calculation Algorithm for Entropy  ###########################################################
+    def logVals(self, xvalues):
+        self.logger.debug("Computed the xvalues to get the entropy from as: " + xvalues)
+
+    def logRows(self, rows):
+        self.logger.debug("Retrieved results from the db of size" + str(len(rows)))
+
+
+###################################################  Processing and Calculation Algorithm for Entropy  ###########################################################
+    def processRows(self, rows, index, total):
+        xvalues = []
+        self.logRows(rows)
+        if len(rows) == 0:
+            return 0
+        for row in rows:
+            xvalues.append( row[index])
+        self.logVals(xvalues)
+        #get shannon entropy
+        return self._calculateEntropy(xvalues, total)
+    
     def _calculateEntropy(self, xvalues, total):
         sign = -1
         entropy = 0.0
@@ -74,45 +94,27 @@ class Sensor(object):
         xvalues = []
         #now get the number of bytes with xi as the source address
         rows = select_source_address_bytes_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["SumBytes"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "SumBytes", total)
 
     def _calculateAddressDstBytesEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of bytes with xi as the destination address
         rows = select_destination_address_bytes_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["SumBytes"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "SumBytes", total)
 
     def _calculateAddressSrcPacketsEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of packets with xi as the source address
         rows = select_source_address_packets_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
+
 
     def _calculateAddressDstPacketsEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of packets with xi as the destination address
         rows = select_destination_address_packets_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
+
 
 
 ###################################################  Getting Port Entropy Values ###########################################################
@@ -121,45 +123,27 @@ class Sensor(object):
         xvalues = []
         #now get the number of bytes with xi as the source port
         rows = select_source_port_bytes_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["SumBytes"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "SumBytes", total)
+
 
     def _calculatePortDstBytesEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of bytes with xi as the destination port
         rows = select_destination_port_bytes_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["SumBytes"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "SumBytes", total)
+
 
     def _calculatePortSrcPacketsEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of packets with xi as the source port
         rows = select_source_port_packets_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
 
     def _calculatePortDstPacketsEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of packers with xi as the destination port
         rows = select_destination_port_packets_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
     
 
 ###################################################  Getting Degrees Entropy Values ###########################################################
@@ -168,49 +152,36 @@ class Sensor(object):
         xvalues = []
         #now get the number of hosts with in degrees xi 
         rows = select_in_degrees_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
 
     def _calculateOutDegreesEntropy(self, total, startid, endid):
         xvalues = []
         #now get the number of hosts with in degrees xi 
         rows = select_out_degrees_in_id_range(c, startid, endid)
-        if len(rows) == 0:
-            return 0
-        for row in rows:
-            xvalues.append( row["Count"])
-        #get shannon entropy
-        return self._calculateEntropy(xvalues, total)
+        return self.processRows(rows, "Count", total)
 
 ###################################################  Getting Latest Packet Id Recorded In DB ###########################################################
+
+    def processLastPacketFromEntropyTable(self, row):
+        if len(row) == 0:
+            return 0
+        else:
+            return row["LastPacket"]
 
     #for Address Entropy
     def getLatestEntropyAddress(self):
         row = select_latest_address_entropy(c, self.sensorId)
-        if len(row) == 0:
-            return 0
-        else:
-            return row["LastPacket"]
+        self.processLastPacketFromEntropyTable(row)
 
     #for Ports
     def getLatestEntropyPort(self):
         row = select_latest_port_entropy(c, self.sensorId)
-        if len(row) == 0:
-            return 0
-        else:
-            return row["LastPacket"]
+        self.processLastPacketFromEntropyTable(row)
 
     #for Degree
     def getLatestEntropyDegree(self):
         row = select_latest_degree_entropy(c, self.sensorId)
-        if len(row) == 0:
-            return 0
-        else:
-            return row["LastPacket"]
+        self.processLastPacketFromEntropyTable(row)
 
     #get the newest packet recorded
     def getLastPacket(self):
@@ -260,6 +231,7 @@ class Sensor(object):
 
         #get the current timestamp 
         theTime = self.getCurrentTimeStamp()
+        
         #create the different objects for holding entropy data, one to be returned and the other to be stored
         entropyPackage = [firstPacketId, srcBytesEntropy, dstBytesEntropy, srcPacketEntropy, dstPacketEntropy]
         data = [self.sensorId, theTime , firstPacketId, lastPacketId, srcPacketEntropy, dstPacketEntropy, srcBytesEntropy, dstBytesEntropy ]
@@ -299,6 +271,7 @@ class Sensor(object):
 
         #get the current timestamp 
         theTime = self.getCurrentTimeStamp()
+
         #create the different objects for holding entropy data, one to be returned and the other to be stored
         entropyPackage = [firstPacketId, srcBytesEntropy, dstBytesEntropy, srcPacketEntropy, dstPacketEntropy]
         data = [self.sensorId, theTime , firstPacketId, lastPacketId, srcPacketEntropy, dstPacketEntropy, srcBytesEntropy, dstBytesEntropy ]
@@ -350,9 +323,13 @@ class Sensor(object):
     def _checkTriggerCrossed(self, entropyValues):
         upperTriggerThreshold = self.baseline + self.threshold
         lowerTriggerThreshold = self.baseline - self.threshold
+        self.logger.debug("Upper and lower baseline are: %s for upper %s for lower " % (upperTriggerThreshold, lowerTriggerThreshold))
+
         trigger = False
         for i in range(1, len(entropyValues)):
             if entropyValues[i] >= upperTriggerThreshold or entropyValues[i] <= lowerTriggerThreshold:
+                self.logger.debug("Trigger detection on entropy value " + str(entropyValues[i]))
+
                 trigger = True
                 break
         return trigger
@@ -364,11 +341,13 @@ class Sensor(object):
         for packet_id_row in all_packets_ids:
             entry = [self.sensorId, packet_id]
             bulk_insert.append(entry)
+        self.logger.debug("Building bulk import for data of length: " + len(bulk_insert))
         create_bulk_alert_entry(c, bulk_insert)
 
     #generate a new response for the current time
     def _generateResponse(self, theTime):
         response_data = [randrange(1000), sensor, self.threshold, self.timeWindow, theTime]
+        self.logger.debug("Generating response with data: " + response_data)
         create_response_entry(c, response_data )
 
     #process the result of the entropy profilers and determine whether an alert needs to be generated
