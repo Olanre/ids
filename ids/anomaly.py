@@ -40,9 +40,9 @@ class Anomaly(object):
     def performAnomalyProfiling(self, sensor, timeWindow, baseline, threshold):
         AnomalyProfiler = Sensor(sensor, timeWindow, baseline, threshold)
         while True:
-            AnomalyProfiler.processEntropyProfiler()
             #sleep for the time window specified in the profiler
             sleep(timeWindow * 60)
+            AnomalyProfiler.processEntropyProfiler()
 
     def processProfilers(self):
         profilers = select_from_profiler(c)

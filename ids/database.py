@@ -1,64 +1,6 @@
 import sqlite3
 from sqlite3 import Error
 
-def create_connection(database):
-    try:
-        conn = sqlite3.connect(database, isolation_level=None, check_same_thread = False)
-        conn.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
-        return conn
-    except Error as e:
-        print(e)
-
-def create_table(c,sql):
-    log_query(sql)
-    c.execute(sql)
-    
-def update_or_create_page(c,data):
-    sql = "SELECT * FROM pages where name=? and session=?"
-    c.execute(sql,data[:-1])
-    result = c.fetchone()
-    if result == None:
-        create_pages(c,data)
-    else:
-        print(result)
-        update_pages(c, result['id'])
- 
-def create_pages(c, data):
-    print(data)
-    sql = ''' INSERT INTO pages(name,session,first_visited)
-              VALUES (?,?,?) '''
-    c.execute(sql, data)
-    
-def update_pages(c, pageId):
-    print(pageId)
-    sql = ''' UPDATE pages
-              SET visits = visits+1 
-              WHERE id = ?'''
-    c.execute(sql, [pageId])
-    
-def create_session(c, data):
-    sql = ''' INSERT INTO sessions(ip, continent, country, city, os, browser, session, created_at)
-              VALUES (?,?,?,?,?,?,?,?) '''
-    c.execute(sql, data)
-    
-def select_all_sessions(c):
-    sql = "SELECT * FROM sessions"
-    c.execute(sql)
-    rows = c.fetchall()
-    return rows
-    
-def select_all_pages(c):
-    sql = "SELECT * FROM pages"
-    c.execute(sql)
-    rows = c.fetchall()
-    return rows
-    
-def select_all_user_visits(c, session_id):
-    sql = "SELECT * FROM pages where session =?"
-    c.execute(sql,[session_id])
-    rows = c.fetchall()
-    return rows
-
 ############################################################################################################################################
 ############################################  Creating and inserting into table ###########################################################
 ############################################################################################################################################
@@ -97,7 +39,7 @@ def create_sensor(c, data):
 
 #Create an anomaly profiler
 def create_anomaly_entry(c, data):
-    sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, MinuteTimeWindow)
+    sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, EntropyBaseline, MinuteTimeWindow)
               VALUES (?,?) '''
     c.execute(sql, data)
 
@@ -432,6 +374,17 @@ def select_total_distinct_dest_hosts_in_id_range(c, startid, endid):
 def log_query(sql):
     print("Executing the following sql query:\t" + sql + "\n\n")
 
+def create_connection(database):
+    try:
+        conn = sqlite3.connect(database, isolation_level=None, check_same_thread = False)
+        conn.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
+        return conn
+    except Error as e:
+        print(e)
+
+def create_table(c,sql):
+    log_query(sql)
+    c.execute(sql)
  
 def main():
 ############################################################################################################################################
