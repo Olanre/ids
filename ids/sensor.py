@@ -6,6 +6,7 @@ import codecs
 import math
 from netaddr import CIDR, IP
 from signal import signal, SIGINT, SIGQUIT
+from datetime import datetime
 from database import *
 
 database = "./detector.db"
@@ -69,7 +70,7 @@ class Sensor(object):
 
     def calculateAddressDstBytesEntropy(self, total, startid, endid):
         xvalues = []
-        #now get the number of bytes with xi as the source address
+        #now get the number of bytes with xi as the destination address
         rows = select_destination_address_bytes_in_id_range(c, startid, endid)
         for row in rows:
             xvalues.append( row["SumBytes"])
@@ -78,7 +79,7 @@ class Sensor(object):
 
     def calculateAddressSrcPacketsEntropy(self, total, startid, endid):
         xvalues = []
-        #now get the number of bytes with xi as the source address
+        #now get the number of packets with xi as the source address
         rows = select_source_address_packets_in_id_range(c, startid, endid)
         for row in rows:
             xvalues.append( row["Count"])
@@ -87,8 +88,47 @@ class Sensor(object):
 
     def calculateAddressDstPacketsEntropy(self, total, startid, endid):
         xvalues = []
-        #now get the number of bytes with xi as the source address
+        #now get the number of packets with xi as the destination address
         rows = select_destination_address_packets_in_id_range(c, startid, endid)
+        for row in rows:
+            xvalues.append( row["Count"])
+        #get shannon entropy
+        return self.calculateEntropy(xvalues, total)
+
+
+###################################################  Getting Port Entropy Values ###########################################################
+
+    def calculatePortSrcBytesEntropy(self, total, startid, endid):
+        xvalues = []
+        #now get the number of bytes with xi as the source port
+        rows = select_source_port_bytes_in_id_range(c, startid, endid)
+        for row in rows:
+            xvalues.append( row["SumBytes"])
+        #get shannon entropy
+        return self.calculateEntropy(xvalues, total)
+
+    def calculatePortDstBytesEntropy(self, total, startid, endid):
+        xvalues = []
+        #now get the number of bytes with xi as the destination port
+        rows = select_destination_port_bytes_in_id_range(c, startid, endid)
+        for row in rows:
+            xvalues.append( row["SumBytes"])
+        #get shannon entropy
+        return self.calculateEntropy(xvalues, total)
+
+    def calculatePortSrcPacketsEntropy(self, total, startid, endid):
+        xvalues = []
+        #now get the number of packets with xi as the source port
+        rows = select_source_port_packets_in_id_range(c, startid, endid)
+        for row in rows:
+            xvalues.append( row["Count"])
+        #get shannon entropy
+        return self.calculateEntropy(xvalues, total)
+
+    def calculatePortDstPacketsEntropy(self, total, startid, endid):
+        xvalues = []
+        #now get the number of packers with xi as the destination port
+        rows = select_destination_port_packets_in_id_range(c, startid, endid)
         for row in rows:
             xvalues.append( row["Count"])
         #get shannon entropy
@@ -98,7 +138,7 @@ class Sensor(object):
 ###################################################  Getting Latest Packet Id Recorded In DB ###########################################################
 
     #for Address
-    def getLastAddress(self):
+    def getFirstAddress(self):
         row = select_latest_address_entropy(c)
         if len(row) == 0:
             return 0
@@ -107,7 +147,7 @@ class Sensor(object):
 
     #for Ports
 
-    def getLastPort(self):
+    def getFirstPort(self):
         row = select_latest_port_entropy(c)
         if len(row) == 0:
             return 0
@@ -116,7 +156,7 @@ class Sensor(object):
 
 
     #for Degree
-    def getLastDegree(self):
+    def getFirstDegree(self):
         row = select_latest_degree_entropy(c)
         if len(row) == 0:
             return 0
@@ -132,12 +172,16 @@ class Sensor(object):
         else:
             return row["PacketId"]
 
-    def processAddressEntropy(self):
-        #draw a line in the sand and get the latest packet to be used for computation
-        lastPacketId = self.getLastPacket()
+    def getCurrentTimeStamp(self):
+        # current date and time
+        now = datetime.now()
+        timestamp = datetime.timestamp(now)
+        self.logger.debug("Saving the current timestamp =", timestamp)
+        return timestamp
 
+    def processAddressEntropy(self, sensor, thisTime, lastPacketId):
         #get the last entropy row we accounted for so we can begin the count in this interval
-        firstPacketId = self.getLastAddress()
+        firstPacketId = self.getFirstAddress()
         self.logger.debug("Looking at packets from packet Id" + str(firstPacketId))
         
         #first get the total bytes
@@ -153,5 +197,52 @@ class Sensor(object):
         srcBytesEntropy = self.calculateAddressSrcBytesEntropy(total_bytes, firstPacketId, lastPacketId)
         dstBytesEntropy = self.calculateAddressDstBytesEntropy(total_bytes, firstPacketId, lastPacketId)
         srcPacketEntropy = self.calculateAddressSrcPacketsEntropy(total_packets, firstPacketId, lastPacketId)
-        srcDstEntropy = self.calculateAddressDstPacketsEntropy(total_packets, firstPacketId, lastPacketId)
+        dstPacketEntropy = self.calculateAddressDstPacketsEntropy(total_packets, firstPacketId, lastPacketId)
+
+        data = [sensor, thisTime , firstPacketId, lastPacketId, srcPacketEntropy, dstPacketEntropy, srcBytesEntropy, dstBytesEntropy ]
+        self.logger.debug("Saving address entropy data as: " + data)
+        create_port_entropy(c, data)
+        return data
+
+
+    def processPortEntropy(self, sensor, thisTime, lastPacketId):
+        #get the last entropy row we accounted for so we can begin the count in this interval
+        firstPacketId = self.getFirstPort()
+        self.logger.debug("Looking at packets from packet Id" + str(firstPacketId))
+        
+        #first get the total bytes
+        total_bytes_rows = select_total_bytes_in_id_range(x, firstPacketId, lastPacketId)
+        total_bytes = total_bytes_rows[0]["TotalBytes"]
+        self.logger.debug("Total bytes sent and received in this window is: " + str(total_bytes))
+
+        #now get the total packets
+        total_packets_rows = select_total_packets_in_id_range(x, firstPacketId, lastPacketId)
+        total_packets = total_packets_rows[0]["TotalPackets"]
+        self.logger.debug("Total packets sent and received in this window is: " + str(total_packets))
+
+        srcBytesEntropy = self.calculatePortSrcBytesEntropy(total_bytes, firstPacketId, lastPacketId)
+        dstBytesEntropy = self.calculatePortDstBytesEntropy(total_bytes, firstPacketId, lastPacketId)
+        srcPacketEntropy = self.calculatePortSrcPacketsEntropy(total_packets, firstPacketId, lastPacketId)
+        dstPacketEntropy = self.calculatePortDstPacketsEntropy(total_packets, firstPacketId, lastPacketId)
+
+        data = [sensor, thisTime , firstPacketId, lastPacketId, srcPacketEntropy, dstPacketEntropy, srcBytesEntropy, dstBytesEntropy ]
+        self.logger.debug("Saving address entropy data as: " + data)
+        create_port_entropy(c, data)
+        return data
+
+    
+    def processEntropyProfile(self, sensor):
+        #draw a line in the sand and get the latest packet to be used for computation
+        lastPacketId = self.getLastPacket()
+
+        #get the current timestamp 
+        thisTime = self.getCurrentTimeStamp()
+
+        self.processAddressEntropy(sensor, thisTime, lastPacketId)
+        self.processPortEntropy(sensor, thisTime, lastPacketId)
+
+
+
+
+
 

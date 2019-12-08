@@ -1,17 +1,18 @@
 
 import sqlite3
 from sqlite3 import Error
- 
+
+
 def create_connection(database):
     try:
         conn = sqlite3.connect(database, isolation_level=None, check_same_thread = False)
         conn.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
-        
         return conn
     except Error as e:
         print(e)
-        
+
 def create_table(c,sql):
+    log_query(sql)
     c.execute(sql)
     
 def update_or_create_page(c,data):
@@ -59,17 +60,70 @@ def select_all_user_visits(c, session_id):
     c.execute(sql,[session_id])
     rows = c.fetchall()
     return rows
-    
+
+############################################################################################################################################
+############################################  Creating and inserting into table ###########################################################
+############################################################################################################################################
+#    
+#Make a new packet
 def create_packet(c, data):
     sql = ''' INSERT INTO packets(TTL,DestinationAddr,Protocol,TotalLength,
             SourceAddr,EthernetProtocol,EthernetSrcAddr,EthernetDstAddr,FrameLength,
             FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags, RawData)
               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+  
+
+#Add a new entry for the address entropy
+def create_address_entropy(c, data):
+    sql = ''' INSERT INTO addressEntropy(Sensor, Time, FirstPacket, LastPacket, SrcPacketScore, DstPacketScore, SrcByteScore, DstByteScore)
+              VALUES (?,?,?,?,?,?,?,?) '''
     c.execute(sql, data)
-    
+
+#Add a new entry for the port entropy
+def create_port_entropy(c, data):
+    sql = ''' INSERT INTO portEntropy(Sensor, Time, FirstPacket, LastPacket, SrcPacketScore, DstPacketScore, SrcByteScore, DstByteScore)
+              VALUES (?,?,?,?,?,?,?,?) '''
+    c.execute(sql, data)        
+
+#Add a new entry for the degree entropy
+def create_degree_entropy(c, data):
+    sql = ''' INSERT INTO portEntropy(Sensor, Time, FirstPacket, LastPacket, inDegreeScore, outDegreeScore)
+              VALUES (?,?,?,?,?,?) '''
+    c.execute(sql, data)
+
+#Add a new sensor
+def create_sensor(c, data):
+    sql = ''' INSERT INTO Sensor(Name, Version)
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+#Create a 1, 5 or 15 minute profiler
+def create_profiler1minute(c, data):
+    sql = ''' INSERT INTO Profiler1Minute(Sensor, EntropyThreshold)
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+def create_profiler5minute(c, data):
+    sql = ''' INSERT INTO Profiler5Minute(Sensor, EntropyThreshold)
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+def create_profiler15minute(c, data):
+    sql = ''' INSERT INTO Profiler15Minute(Sensor, EntropyThreshold)
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+#get all the packets
 def select_all_packets(c):
     sql = "SELECT * FROM packets"
     c.execute(sql)
+    rows = c.fetchall()
+    return rows
+
+#get sensor responses
+def select_sensor_responses(c, response_id):
+    sql = "SELECT * FROM response where responsecode =?"
+    c.execute(sql,[response_id])
     rows = c.fetchall()
     return rows
 
@@ -77,7 +131,7 @@ def select_all_packets(c):
 ###################################  Getting Entropy By Source or Destination Address ######################################################
 ############################################################################################################################################
 def select_source_address_bytes_in_time_range(c, starttime, endtime):
-    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SourceAddr "
+    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where ArrivalTime >= ? and ArrivalTime < ? Group By SourceAddr "
     c.execute(sql,[starttime, endtime])
     rows = c.fetchall()
     return rows
@@ -89,37 +143,37 @@ def select_destination_address_bytes_in_time_range(c, starttime, endtime):
     return rows
 
 def select_source_address_bytes_in_id_range(c, startid, endid):
-    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By SourceAddr "
+    sql = "SELECT SourceAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId < ? Group By SourceAddr "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_destination_address_bytes_in_id_range(c, startid, endid):
-    sql = "SELECT DestinationAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By DestinationAddr "
+    sql = "SELECT DestinationAddr, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId < ? Group By DestinationAddr "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_source_address_packets_in_time_range(c, starttime, endtime):
-    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By SourceAddr "
+    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime < ? Group By SourceAddr "
     c.execute(sql,[starttime, endtime])
     rows = c.fetchall()
     return rows
 
 def select_destination_address_packets_in_time_range(c, starttime, endtime):
-    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? Group By DestinationAddr "
+    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime < ? Group By DestinationAddr "
     c.execute(sql,[starttime, endtime])
     rows = c.fetchall()
     return rows
 
 def select_source_address_packets_in_id_range(c, startid, endid):
-    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where PacketId >= ? and PacketId <= ? Group By SourceAddr "
+    sql = "SELECT SourceAddr, Count(SourceAddr) as Count from packets where PacketId >= ? and PacketId < ? Group By SourceAddr "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_destination_address_packets_in_id_range(c, startid, endid):
-    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where PacketId >= ? and PacketId <= ? Group By DestinationAddr "
+    sql = "SELECT DestinationAddr, Count(DestinationAddr) as Count from packets where PacketId >= ? and PacketId < ? Group By DestinationAddr "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
@@ -140,13 +194,13 @@ def select_destination_port_bytes_in_time_range(c, starttime, endtime):
     return rows
 
 def select_source_port_bytes_in_id_range(c, startid, endid):
-    sql = "SELECT SrcPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By SrcPort "
+    sql = "SELECT SrcPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId < ? Group By SrcPort "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_destination_port_bytes_in_id_range(c, startid, endid):
-    sql = "SELECT DstPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId <= ? Group By DstPort "
+    sql = "SELECT DstPort, SUM(Length) as SumBytes from packets where PacketId >= ? and PacketId < ? Group By DstPort "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
@@ -164,13 +218,13 @@ def select_destination_port_packets_in_time_range(c, starttime, endtime):
     return rows
 
 def select_source_port_packets_in_id_range(c, startid, endid):
-    sql = "SELECT SrcPort, Count(SrcPort) as Count from packets where PacketId >= ? and PacketId <= ? Group By SrcPort "
+    sql = "SELECT SrcPort, Count(SrcPort) as Count from packets where PacketId >= ? and PacketId < ? Group By SrcPort "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_destination_port_packets_in_id_range(c, startid, endid):
-    sql = "SELECT DstPort, Count(DstPort) as Count from packets where PacketId >= ? and PacketId <= ? Group By DstPort "
+    sql = "SELECT DstPort, Count(DstPort) as Count from packets where PacketId >= ? and PacketId < ? Group By DstPort "
     c.execute(sql, [startid, endid])
     rows = c.fetchall()
     return rows
@@ -185,15 +239,8 @@ def select_all_packets_in_time_range(c, starttime, endtime):
     return rows
 
 def select_all_packets_in_id_range(c, startid, endid):
-    sql = "SELECT * FROM packets where PacketId >= ? and PacketId <= ? "
+    sql = "SELECT * FROM packets where PacketId >= ? and PacketId < ? "
     c.execute(sql, [startid, endid])
-    rows = c.fetchall()
-    return rows
-
-def select_profile_packets_by_id(c, profile_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler5Minute where id = ?))"""
-    c.execute(sql,[profile_id])
     rows = c.fetchall()
     return rows
 
@@ -205,7 +252,7 @@ def select_latest_packet(c):
     return rows
 
 ############################################################################################################################################
-###################################################  Getting Entropies By Selector ###########################################################
+###################################################  Getting Entropies By Selector #########################################################
 ############################################################################################################################################
 #By Sensor
 def select_address_entropy_by_sensor(c, sensorId):
@@ -264,6 +311,53 @@ def select_latest_degree_entropy(c):
     rows = c.fetchone()[0]
     return rows
 
+############################################################################################################################################
+###################################################       Getting Sensor Data      #########################################################
+############################################################################################################################################
+# Selection for 1 minute profiler
+def select_minute1profiler(c):
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler1Minute m where 
+    s.SensorId = m.sensor  """
+    c.execute(sql)
+    rows = c.fetchall()
+    return rows
+
+def select_minute1profiler_packets_by_id(c, profile_id):
+    sql = """SELECT * from packets where PacketId 
+    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler1Minute where id = ?))"""
+    c.execute(sql,[profile_id])
+    rows = c.fetchall()
+    return rows
+
+# Selection for 5 minute profiler
+def select_minute5profiler(c):
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler5Minute m where 
+    s.SensorId = m.sensor  """
+    c.execute(sql)
+    rows = c.fetchall()
+    return rows
+
+def select_minute5profiler_packets_by_id(c, profile_id):
+    sql = """SELECT * from packets where PacketId 
+    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler5Minute where id = ?))"""
+    c.execute(sql,[profile_id])
+    rows = c.fetchall()
+    return rows
+
+# Selection for 15 minute profiler
+def select_minute15profiler(c):
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler15Minute m where 
+    s.SensorId = m.sensor  """
+    c.execute(sql)
+    rows = c.fetchall()
+    return rows
+
+def select_minute15profiler_packets_by_id(c, profile_id):
+    sql = """SELECT * from packets where PacketId 
+    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler15Minute where id = ?))"""
+    c.execute(sql,[profile_id])
+    rows = c.fetchall()
+    return rows
 
 ##################################  Getting Total Byes ##################################
 def select_total_bytes_in_time_range(c, starttime, endtime):
@@ -273,7 +367,7 @@ def select_total_bytes_in_time_range(c, starttime, endtime):
     return rows
 
 def select_total_bytes_in_id_range(c, startid, endid):
-    sql = "SELECT SUM(Length) as TotalBytes FROM packets where PacketId >= ? and PacketId <= ? "
+    sql = "SELECT SUM(Length) as TotalBytes FROM packets where PacketId >= ? and PacketId < ? "
     c.execute(sql,[startid, endid])
     rows = c.fetchall()
     return rows
@@ -286,18 +380,15 @@ def select_total_packets_in_time_range(c, starttime, endtime):
     return rows
 
 def select_total_packets_in_id_range(c, startid, endid):
-    sql = "SELECT Count(*) as TotalPackets FROM packets where PacketId >= ? and PacketId <= ? "
+    sql = "SELECT Count(*) as TotalPackets FROM packets where PacketId >= ? and PacketId < ? "
     c.execute(sql,[startid, endid])
     rows = c.fetchall()
     return rows
 
+##################################  Utility queries ##################################
+def log_query(sql):
+    print"Executing the following sql query:\t" + sql + "\n\n")
 
-    
-def select_sensor_responses(c, response_id):
-    sql = "SELECT * FROM response where responsecode =?"
-    c.execute(sql,[response_id])
-    rows = c.fetchall()
-    return rows
  
 def main():
     database = "./detector.db"
