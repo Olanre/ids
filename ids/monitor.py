@@ -112,7 +112,8 @@ class Monitor(object):
         RawData = str(pkt.get_raw_packet())
         data = [TTL, DestinationAddr, Protocol, TotalLength, SourceAddr, EthernetProtocol,
         EthernetSrcAddr, EthernetDstAddr, FrameLength, FrameType, FrameNumber, ArrivalTime,
-        InterfaceId, Length, DstPort, SrcPort, Flags, RawData]
+        InterfaceId, Length, DstPort, SrcPort, Flags]
+        self.logger.debug("Storing packet data as : {}".format(data))
         create_packet(c,data)
 
 

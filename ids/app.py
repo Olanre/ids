@@ -6,7 +6,7 @@ import httpagentparser
 import json
 import os
 import hashlib
-from database import create_connection, update_or_create_page, create_session, select_all_user_visits, select_all_sessions
+from database import *
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)

@@ -9,10 +9,10 @@ python /app/importer.py
 echo "Starting monitoring script"
 nohup bash /app/monitor.sh &
 
-
 echo "Starting anomaly detector script"
-nohup python /app/anomaly.py &
-
+mkdir -p /app/log
+touch /app/log/anomaly.log
+nohup python /app/anomaly.py & >> /app/log/anomaly.log 2>&1
 
 echo "Starting flask"
 nohup python app.py &

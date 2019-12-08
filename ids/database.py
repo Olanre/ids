@@ -9,8 +9,9 @@ from sqlite3 import Error
 def create_packet(c, data):
     sql = ''' INSERT INTO packets(TTL,DestinationAddr,Protocol,TotalLength,
             SourceAddr,EthernetProtocol,EthernetSrcAddr,EthernetDstAddr,FrameLength,
-            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags, RawData)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+            FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+    c.execute(sql, data)        
 
 #Add a new entry for the address entropy
 def create_address_entropy(c, data):
@@ -26,7 +27,7 @@ def create_port_entropy(c, data):
 
 #Add a new entry for the degree entropy
 def create_degree_entropy(c, data):
-    sql = ''' INSERT INTO portEntropy(Sensor, Time, FirstPacket, LastPacket, inDegreeScore, outDegreeScore)
+    sql = ''' INSERT INTO degreeEntropy(Sensor, Time, FirstPacket, LastPacket, inDegreeScore, outDegreeScore)
               VALUES (?,?,?,?,?,?) '''
     c.execute(sql, data)
 
@@ -40,7 +41,7 @@ def create_sensor(c, data):
 #Create an anomaly profiler
 def create_anomaly_entry(c, data):
     sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, EntropyBaseline, MinuteTimeWindow)
-              VALUES (?,?) '''
+              VALUES (?,?,?,?) '''
     c.execute(sql, data)
 
 ###################################    
@@ -59,20 +60,20 @@ def create_bulk_alert_entry(c, data):
 #Create new alert response entry
 def create_response_entry(c, data):
     sql = ''' INSERT INTO response(ResponseCode, Sensor, Threshold, TimeSpan, TriggerDate )
-              VALUES (?,?) '''
+              VALUES (?,?,?,?,?) '''
     c.execute(sql, data)
 
 ###################################    
 #Create new notification response entry
 def create_notification_entry(c, data):
     sql = ''' INSERT INTO notification(Response, Name, NotificationHubId)
-              VALUES (?,?) '''
+              VALUES (?,?,?) '''
     c.execute(sql, data)
 
 #Create new email response entry
 def create_email_entry(c, data):
     sql = ''' INSERT INTO email(Response, RecipientAddress, EmailMessage )
-              VALUES (?,?) '''
+              VALUES (?,?,?) '''
     c.execute(sql, data)
 
 ###################################
@@ -93,8 +94,8 @@ def select_sensor_responses(c, response_id):
 def get_notification_entry_by_id(c, hub_id):
     sql = ''' SELECT * FROM notification where notificationhubid = ?'''
     c.execute(sql,[hub_id])
-    row = c.fetchone()[0]
-    return row
+    rows = c.fetchall()
+    return rows
 
 ############################################################################################################################################
 ###################################  Getting Entropy By Source or Destination Address ######################################################
@@ -252,8 +253,8 @@ def select_packetids_in_id_range(c, startid, endid):
 def select_latest_packet(c):
     sql = "SELECT * FROM packets order By PacketId Desc limit 1 "
     c.execute(sql)
-    row = c.fetchone()[0]
-    return row
+    rows = c.fetchall()
+    return rows
 
 ############################################################################################################################################
 ###################################################  Getting Entropies By Selector #########################################################
@@ -297,23 +298,23 @@ def select_degree_entropy_by_id(c, Id):
     return rows
 
 #Most Recent
-def select_latest_address_entropy(c, sensor):
+def select_latest_address_entropy(c, sensorId):
     sql = "SELECT * FROM addressEntropy where Sensor = ? order By Id Desc limit 1 "
-    c.execute(sql,[sensor_id])
-    row = c.fetchone()[0]
-    return row
+    c.execute(sql,[sensorId])
+    rows = c.fetchall()
+    return rows
 
-def select_latest_port_entropy(c, sensor):
+def select_latest_port_entropy(c, sensorId):
     sql = "SELECT * FROM portEntropy where Sensor = ? order By Id Desc limit 1 "
-    c.execute(sql,[sensor_id])
-    row = c.fetchone()[0]
-    return row
+    c.execute(sql,[sensorId])
+    rows = c.fetchall()
+    return rows
 
-def select_latest_degree_entropy(c, sensor):
+def select_latest_degree_entropy(c, sensorId):
     sql = "SELECT * FROM degreeEntropy where Sensor = ? order By Id Desc limit 1 "
-    c.execute(sql,[sensor_id])
-    row = c.fetchone()[0]
-    return row
+    c.execute(sql,[sensorId])
+    rows = c.fetchall()
+    return rows
 
 ############################################################################################################################################
 ###################################################       Getting Sensor Data      #########################################################
@@ -338,8 +339,8 @@ def select_profiler_by_sensor_id(c, sensor_id):
     sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.EntropyBaseline as Baseline, m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
     s.SensorId = m.sensor  and m.sensor = ? """
     c.execute(sql,[sensor_id])
-    row = c.fetchone()[0]
-    return row
+    rows = c.fetchall()
+    return rows
 
 
 
@@ -359,13 +360,13 @@ def select_total_packets_in_id_range(c, startid, endid):
 
 ##################################  Getting Total Degrees ##################################
 def select_total_distinct_source_hosts_in_id_range(c, startid, endid):
-    sql = "SELECT Count(Distinct SourceAddr) as Count from packets where PacketId >= ? and PacketId < ? "
+    sql = "SELECT SUM(SumSources) as Count from (SELECT DestinationAddr, COUNT(Distinct SourceAddr) as SumSources from packets where PacketId >= ? and PacketId < ? group by DestinationAddr )"
     c.execute(sql,[startid, endid])
     rows = c.fetchall()
     return rows
 
 def select_total_distinct_dest_hosts_in_id_range(c, startid, endid):
-    sql = "SELECT Count(Distinct DestinationAddr) as Count from packets where PacketId >= ? and PacketId < ? "
+    sql = "Select SUM(SumDestinations) as Count from (SELECT SourceAddr, COUNT(Distinct DestinationAddr) as SumDestinations from packets where PacketId >= ? and PacketId < ? group by SourceAddr)"
     c.execute(sql,[startid, endid])
     rows = c.fetchall()
     return rows
@@ -410,7 +411,7 @@ def main():
             DstPort INTEGER NOT NULL,
             SrcPort INTEGER NOT NULL,
             Flags VARCHAR(20)  NOT NULL,
-            RawData TEXT NOT NULL
+            RawData TEXT
         ); 
     """
     sql_create_network = """ 
@@ -543,6 +544,7 @@ def main():
         # create tables
         create_table(conn, sql_create_packets)
         create_table(conn, sql_create_network)
+        create_table(conn, sql_create_sensor)
         create_table(conn, sql_create_anomalyProfiler)
         create_table(conn, sql_create_residesin)
         create_table(conn, sql_create_reportson)

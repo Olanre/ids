@@ -6,11 +6,11 @@ import time
 from signal import signal, SIGINT, SIGQUIT
 from datetime import datetime
 from threading import Thread
-from database import *
+import database
 from sensor import *
 
 db = "./detector.db"
-conn = create_connection(db)
+conn = database.create_connection(db)
 c = conn.cursor()
 
 def signal_handler(signal, frame):
@@ -47,10 +47,12 @@ class Anomaly(object):
             AnomalyProfiler.processEntropyProfiler()
 
     def processProfilers(self):
-        profilers = select_from_profiler(c)
+        thread_list = []
+        profilers = database.select_from_profiler(c)
         if len(profilers) == 0:
             self.logger.info("No profilers found, shutting down")
             sys.exit(0)
+        self.logger.debug("Retrieved results from the db of size as: {}".format((len(profilers))))
         for profiler in profilers:
             name = profiler["SensorName"]
             sensorId = profiler["Id"]
@@ -59,13 +61,18 @@ class Anomaly(object):
             threshold = profiler["Threshold"]
             self.logger.info("Starting up new profiler with name:{} id:{} timeWindow:{} baseline:{} threshold:{} ".format(name, sensorId, timeWindow, baseline, threshold))
             thread = Thread(target = self.performAnomalyProfiling, args = (name, sensorId, timeWindow, baseline, threshold))
+            thread_list.append(thread)
+    
+        # from the main-thread, starts child threads
+        for thread in thread_list:
             thread.start()
+        # main-thread 'sleeping' in join-method, waiting for child-thread to finish 
+        for thread in thread_list:
             thread.join()
             
 if __name__ == '__main__':
     try:
         anomalyDetect = Anomaly()
-        anomalyDetect.processProfilers()
     except:
         raise 
 
