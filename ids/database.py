@@ -1,7 +1,5 @@
-
 import sqlite3
 from sqlite3 import Error
-
 
 def create_connection(database):
     try:
@@ -64,14 +62,13 @@ def select_all_user_visits(c, session_id):
 ############################################################################################################################################
 ############################################  Creating and inserting into table ###########################################################
 ############################################################################################################################################
-#    
+   
 #Make a new packet
 def create_packet(c, data):
     sql = ''' INSERT INTO packets(TTL,DestinationAddr,Protocol,TotalLength,
             SourceAddr,EthernetProtocol,EthernetSrcAddr,EthernetDstAddr,FrameLength,
             FrameType,FrameNumber,ArrivalTime,InterfaceId,Length,DstPort,SrcPort, Flags, RawData)
               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
-  
 
 #Add a new entry for the address entropy
 def create_address_entropy(c, data):
@@ -91,28 +88,52 @@ def create_degree_entropy(c, data):
               VALUES (?,?,?,?,?,?) '''
     c.execute(sql, data)
 
+###################################
 #Add a new sensor
 def create_sensor(c, data):
     sql = ''' INSERT INTO Sensor(Name, Version)
               VALUES (?,?) '''
     c.execute(sql, data)
 
-#Create a 1, 5 or 15 minute profiler
-def create_profiler1minute(c, data):
-    sql = ''' INSERT INTO Profiler1Minute(Sensor, EntropyThreshold)
+#Create an anomaly profiler
+def create_anomaly_entry(c, data):
+    sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, MinuteTimeWindow)
               VALUES (?,?) '''
     c.execute(sql, data)
 
-def create_profiler5minute(c, data):
-    sql = ''' INSERT INTO Profiler5Minute(Sensor, EntropyThreshold)
+###################################    
+#Create new alert entry
+def create_alert_entry(c, data):
+    sql = ''' INSERT INTO reportsOn(Sensor, Packet)
               VALUES (?,?) '''
     c.execute(sql, data)
 
-def create_profiler15minute(c, data):
-    sql = ''' INSERT INTO Profiler15Minute(Sensor, EntropyThreshold)
+#create new bulk alert entry
+def create_bulk_alert_entry(c, data):
+    sql = ''' INSERT INTO reportsOn(Sensor, Packet)
+              VALUES (?,?) '''
+    c.executemany(sql, data)
+
+#Create new alert response entry
+def create_response_entry(c, data):
+    sql = ''' INSERT INTO response(ResponseCode, Sensor, Threshold, TimeSpan, TriggerDate )
               VALUES (?,?) '''
     c.execute(sql, data)
 
+###################################    
+#Create new notification response entry
+def create_notification_entry(c, data):
+    sql = ''' INSERT INTO notification(Response, Name, NotificationHubId)
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+#Create new email response entry
+def create_email_entry(c, data):
+    sql = ''' INSERT INTO email(Response, RecipientAddress, EmailMessage )
+              VALUES (?,?) '''
+    c.execute(sql, data)
+
+###################################
 #get all the packets
 def select_all_packets(c):
     sql = "SELECT * FROM packets"
@@ -126,6 +147,12 @@ def select_sensor_responses(c, response_id):
     c.execute(sql,[response_id])
     rows = c.fetchall()
     return rows
+
+def get_notification_entry_by_id(c, hub_id):
+    sql = ''' SELECT * FROM notification where notificationhubid = ?'''
+    c.execute(sql,[hub_id])
+    row = c.fetchone()[0]
+    return row
 
 ############################################################################################################################################
 ###################################  Getting Entropy By Source or Destination Address ######################################################
@@ -273,12 +300,18 @@ def select_all_packets_in_id_range(c, startid, endid):
     rows = c.fetchall()
     return rows
 
+def select_packetids_in_id_range(c, startid, endid):
+    sql = "SELECT PacketId FROM packets where PacketId >= ? and PacketId < ? "
+    c.execute(sql, [startid, endid])
+    rows = c.fetchall()
+    return rows
+
 #Most Recent
 def select_latest_packet(c):
     sql = "SELECT * FROM packets order By PacketId Desc limit 1 "
     c.execute(sql)
-    rows = c.fetchone()[0]
-    return rows
+    row = c.fetchone()[0]
+    return row
 
 ############################################################################################################################################
 ###################################################  Getting Entropies By Selector #########################################################
@@ -322,101 +355,53 @@ def select_degree_entropy_by_id(c, Id):
     return rows
 
 #Most Recent
-def select_latest_address_entropy(c):
-    sql = "SELECT * FROM addressEntropy order By Id Desc limit 1 "
-    c.execute(sql)
-    rows = c.fetchone()[0]
-    return rows
+def select_latest_address_entropy(c, sensor):
+    sql = "SELECT * FROM addressEntropy where Sensor = ? order By Id Desc limit 1 "
+    c.execute(sql,[sensor_id])
+    row = c.fetchone()[0]
+    return row
 
-def select_latest_port_entropy(c):
-    sql = "SELECT * FROM portEntropy order By Id Desc limit 1 "
-    c.execute(sql)
-    rows = c.fetchone()[0]
-    return rows
+def select_latest_port_entropy(c, sensor):
+    sql = "SELECT * FROM portEntropy where Sensor = ? order By Id Desc limit 1 "
+    c.execute(sql,[sensor_id])
+    row = c.fetchone()[0]
+    return row
 
-def select_latest_degree_entropy(c):
-    sql = "SELECT * FROM degreeEntropy order By Id Desc limit 1 "
-    c.execute(sql)
-    rows = c.fetchone()[0]
-    return rows
+def select_latest_degree_entropy(c, sensor):
+    sql = "SELECT * FROM degreeEntropy where Sensor = ? order By Id Desc limit 1 "
+    c.execute(sql,[sensor_id])
+    row = c.fetchone()[0]
+    return row
 
 ############################################################################################################################################
 ###################################################       Getting Sensor Data      #########################################################
 ############################################################################################################################################
-# Selection for 1 minute profiler
-def select_minute1profiler(c):
-    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler1Minute m where 
+# Selection for all anomaly profiler
+def select_from_profiler(c):
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.EntropyBaseline as Baseline, m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
     s.SensorId = m.sensor  """
     c.execute(sql)
     rows = c.fetchall()
     return rows
 
-def select_packets_by_minute1profiler_id(c, profile_id):
+#Selection for a profiler's packets by its sensor id
+def select_packets_by_profiler_sensorid(c, sensor_id):
     sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler1Minute where Id = ?))"""
-    c.execute(sql,[profile_id])
-    rows = c.fetchall()
-    return rows
-
-def select_packets_by_minute1profiler_sensorid(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler1Minute where Sensor = ?))"""
+    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from anomalyProfiler where Sensor = ?))"""
     c.execute(sql,[sensor_id])
     rows = c.fetchall()
     return rows
 
-# Selection for 5 minute profiler
-def select_minute5profiler(c):
-    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler5Minute m where 
-    s.SensorId = m.sensor  """
-    c.execute(sql)
-    rows = c.fetchall()
-    return rows
-
-def select_packets_by_minute5profiler_id(c, profile_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler5Minute where Id = ?))"""
-    c.execute(sql,[profile_id])
-    rows = c.fetchall()
-    return rows
-
-def select_packets_by_minute5profiler_sensorid(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler5Minute where Sensor = ?))"""
+def select_profiler_by_sensor_id(c, sensor_id):
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.EntropyBaseline as Baseline, m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
+    s.SensorId = m.sensor  and m.sensor = ? """
     c.execute(sql,[sensor_id])
-    rows = c.fetchall()
-    return rows
+    row = c.fetchone()[0]
+    return row
 
 
-# Selection for 15 minute profiler
-def select_minute15profiler(c):
-    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold from sensor s,  Profiler15Minute m where 
-    s.SensorId = m.sensor  """
-    c.execute(sql)
-    rows = c.fetchall()
-    return rows
-
-def select_packets_by_minute15profiler_id(c, profile_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler15Minute where Id = ?))"""
-    c.execute(sql,[profile_id])
-    rows = c.fetchall()
-    return rows
-
-def select_packets_by_minute1profiler_sensorid(c, sensor_id):
-    sql = """SELECT * from packets where PacketId 
-    in ( Select Packet from ReportsOn where Sensor in ( select Sensor from Profiler15Minute where Sensor = ?))"""
-    c.execute(sql,[sensor_id])
-    rows = c.fetchall()
-    return rows
 
 ##################################  Getting Total Byes ##################################
-def select_total_bytes_in_time_range(c, starttime, endtime):
-    sql = "SELECT SUM(Length) as TotalBytes from packets where ArrivalTime >= ? and ArrivalTime <= ? "
-    c.execute(sql,[starttime, endtime])
-    rows = c.fetchall()
-    return rows
-
 def select_total_bytes_in_id_range(c, startid, endid):
     sql = "SELECT SUM(Length) as TotalBytes FROM packets where PacketId >= ? and PacketId < ? "
     c.execute(sql,[startid, endid])
@@ -424,12 +409,6 @@ def select_total_bytes_in_id_range(c, startid, endid):
     return rows
 
 ##################################  Getting Total Packets ##################################
-def select_total_packets_in_time_range(c, starttime, endtime):
-    sql = "SELECT Count(*) as TotalPackets from packets where ArrivalTime >= ? and ArrivalTime <= ? "
-    c.execute(sql,[starttime, endtime])
-    rows = c.fetchall()
-    return rows
-
 def select_total_packets_in_id_range(c, startid, endid):
     sql = "SELECT Count(*) as TotalPackets FROM packets where PacketId >= ? and PacketId < ? "
     c.execute(sql,[startid, endid])
@@ -437,21 +416,9 @@ def select_total_packets_in_id_range(c, startid, endid):
     return rows
 
 ##################################  Getting Total Degrees ##################################
-def select_total_distinct_source_hosts_in_time_range(c, starttime, endtime):
-    sql = "SELECT Count(Distinct SourceAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? "
-    c.execute(sql,[starttime, endtime])
-    rows = c.fetchall()
-    return rows
-
 def select_total_distinct_source_hosts_in_id_range(c, startid, endid):
     sql = "SELECT Count(Distinct SourceAddr) as Count from packets where PacketId >= ? and PacketId < ? "
     c.execute(sql,[startid, endid])
-    rows = c.fetchall()
-    return rows
-
-def select_total_distinct_dest_hosts_in_time_range(c, starttime, endtime):
-    sql = "SELECT Count(Distinct DestinationAddr) as Count from packets where ArrivalTime >= ? and ArrivalTime <= ? "
-    c.execute(sql,[starttime, endtime])
     rows = c.fetchall()
     return rows
 
@@ -463,11 +430,13 @@ def select_total_distinct_dest_hosts_in_id_range(c, startid, endid):
 
 ##################################  Utility queries ##################################
 def log_query(sql):
-    print"Executing the following sql query:\t" + sql + "\n\n")
+    print("Executing the following sql query:\t" + sql + "\n\n")
 
  
 def main():
-    database = "./detector.db"
+############################################################################################################################################
+###################################################       Creating the tables      #########################################################
+############################################################################################################################################
     sql_create_packets = """ 
         CREATE TABLE IF NOT EXISTS packets (
             PacketId INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -508,29 +477,12 @@ def main():
         ); 
     """
 
-    sql_create_Profiler1Minute = """ 
-        CREATE TABLE IF NOT EXISTS Profiler1Minute (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Sensor INTEGER NOT NULL PRIMARY KEY,
-            EntropyThreshold  REAL NOT NULL,
-            FOREIGN KEY(Sensor) REFERENCES sensor(SensorId)
-        ); 
-    """
-
-    sql_create_Profiler5Minute = """ 
-        CREATE TABLE IF NOT EXISTS Profiler5Minute (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sql_create_anomalyProfiler = """ 
+        CREATE TABLE IF NOT EXISTS anomalyProfiler (
             Sensor INTEGER NOT NULL PRIMARY KEY,
             EntropyThreshold REAL NOT NULL,
-            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
-        ); 
-    """
-
-    sql_create_Profiler15Minute = """ 
-        CREATE TABLE IF NOT EXISTS Profiler15Minute (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Sensor INTEGER NOT NULL PRIMARY KEY ,
-            EntropyThreshold REAL NOT NULL,
+            EntropyBaseline REAL NOT NULL,
+            MinuteTimeWindow INTEGER NOT NULL,
             FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
         ); 
     """
@@ -631,16 +583,14 @@ def main():
             FOREIGN KEY(Response) REFERENCES Response(ResponseCode)
         ); 
     """
-    
+    database = "./detector.db"
     # create a database connection
     conn = create_connection(database)
     if conn is not None:
         # create tables
         create_table(conn, sql_create_packets)
         create_table(conn, sql_create_network)
-        create_table(conn, sql_create_Profiler1Minute)
-        create_table(conn, sql_create_Profiler5Minute)
-        create_table(conn, sql_create_Profiler15Minute)
+        create_table(conn, sql_create_anomalyProfiler)
         create_table(conn, sql_create_residesin)
         create_table(conn, sql_create_reportson)
         create_table(conn, sql_create_response)
