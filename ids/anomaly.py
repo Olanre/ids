@@ -2,12 +2,12 @@ import time
 import sys
 import os
 import logging
-import math
+import time
 from signal import signal, SIGINT, SIGQUIT
 from datetime import datetime
 from threading import Thread
 from database import *
-from sensor 
+from sensor import *
 
 db = "./detector.db"
 conn = create_connection(db)
@@ -27,7 +27,7 @@ class Anomaly(object):
         """ Constructor
         """
         logging.basicConfig(
-            filename='sensor.log',
+            filename='anomaly.log',
             level=logging.DEBUG, 
             format= '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
             datefmt='%m/%d/%Y %I:%M:%S %p'
@@ -37,27 +37,31 @@ class Anomaly(object):
         self.processProfilers()
         global conn, c
 
-    def performAnomalyProfiling(self, sensor, timeWindow, baseline, threshold):
-        AnomalyProfiler = Sensor(sensor, timeWindow, baseline, threshold)
+    def performAnomalyProfiling(self, name, sensorId, timeWindow, baseline, threshold):
+        AnomalyProfiler = Sensor(name, sensorId, timeWindow, baseline, threshold)
+        sleepTime = timeWindow * 60
         while True:
             #sleep for the time window specified in the profiler
-            sleep(timeWindow * 60)
+            self.logger.info("The profiler {} - {} will now sleep for {} seconds".format(name, sensorId, sleepTime))
+            time.sleep(sleepTime)
             AnomalyProfiler.processEntropyProfiler()
 
     def processProfilers(self):
         profilers = select_from_profiler(c)
-        if len(profilers) == 0
+        if len(profilers) == 0:
             self.logger.info("No profilers found, shutting down")
             sys.exit(0)
         for profiler in profilers:
-            sensor = profiler["Id"]
+            name = profiler["SensorName"]
+            sensorId = profiler["Id"]
             timeWindow = profiler["TimeWindow"]
             baseline = profiler["Baseline"]
             threshold = profiler["Threshold"]
-            thread = Thread(target = self.performAnomalyProfiling, args = (sensor, timeWindow, baseline, threshold))
+            self.logger.info("Starting up new profiler with name:{} id:{} timeWindow:{} baseline:{} threshold:{} ".format(name, sensorId, timeWindow, baseline, threshold))
+            thread = Thread(target = self.performAnomalyProfiling, args = (name, sensorId, timeWindow, baseline, threshold))
             thread.start()
             thread.join()
-
+            
 if __name__ == '__main__':
     try:
         anomalyDetect = Anomaly()

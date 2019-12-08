@@ -28,18 +28,21 @@ class Sensor(object):
     baseline = ""
     threshold = ""
     timeWindow = ""
+    name=""
 
-    def __init__(self, sensorid, timeWindow, baseline, threshold):
+    def __init__(self, name, sensorid, timeWindow, baseline, threshold):
         """ Constructor
         """
+        fname = "sensor-" + sensorid + ".log"
         logging.basicConfig(
-            filename='sensor.log',
+            filename=fname,
             level=logging.DEBUG, 
             format= '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
             datefmt='%m/%d/%Y %I:%M:%S %p'
         )
         self.logger = logging.getLogger(__name__)
         self.logger.info("Starting up sensor object")
+        self.name = name
         self.sensorId = sensorid
         self.timeWindow = timeWindow
         self.baseline = baseline
@@ -231,7 +234,7 @@ class Sensor(object):
 
         #get the current timestamp 
         theTime = self.getCurrentTimeStamp()
-        
+
         #create the different objects for holding entropy data, one to be returned and the other to be stored
         entropyPackage = [firstPacketId, srcBytesEntropy, dstBytesEntropy, srcPacketEntropy, dstPacketEntropy]
         data = [self.sensorId, theTime , firstPacketId, lastPacketId, srcPacketEntropy, dstPacketEntropy, srcBytesEntropy, dstBytesEntropy ]
@@ -372,11 +375,3 @@ class Sensor(object):
                 firstPacketId = entropyData[0]
                 self._generateReportsOn(firstPacketId, lastPacketId)
                 self._generateResponse( theTime)
-
-
-
-
-
-
-
-
