@@ -24,12 +24,14 @@ signal(SIGQUIT, signal_handler)
 
 class Sensor(object):
     sensorId = 0
-    baseline = ""
+    addressBaseline = ""
+    portBaseline = ""
+    degreeBaseline = ""
     threshold = ""
     timeWindow = ""
     name=""
 
-    def __init__(self, name, sensorid, timeWindow, baseline, threshold):
+    def __init__(self, name, sensorid, timeWindow, addressBaseline, portBaseline, degreeBaseline, threshold):
         """ Constructor
         """
         fname = "sensor-" + str(sensorid) + ".log"
@@ -44,7 +46,9 @@ class Sensor(object):
         self.name = name
         self.sensorId = sensorid
         self.timeWindow = timeWindow
-        self.baseline = baseline
+        self.addressBaseline = addressBaseline
+        self.portBaseline = portBaseline
+        self.degreeBaseline = degreeBaseline
         self.threshold = threshold
         global conn, c
 
@@ -315,15 +319,26 @@ class Sensor(object):
 ###################################################  Perform Alerting and Responses ###########################################################
 
     #Check to see if ANY of the entropies in the list has crossed the threshold deviation from upper or lower baseline
-    def _checkTriggerCrossed(self, entropyValues):
-        upperTriggerThreshold = self.baseline + self.threshold
-        lowerTriggerThreshold = self.baseline - self.threshold
-        self.logger.debug("Upper and lower baseline are:  {} for upper  and :  {} for lower ".format(upperTriggerThreshold, lowerTriggerThreshold))
+    def _checkTriggerCrossed(self, entropyValues, entropyType):
+
+        if entropyType == "address":
+            upperTriggerThreshold = self.addressBaseline + self.threshold
+            lowerTriggerThreshold = self.addressBaseline - self.threshold
+        elif entropyType == "port":
+            upperTriggerThreshold = self.portBaseline + self.threshold
+            lowerTriggerThreshold = self.portBaseline - self.threshold
+        elif entropyType == "degree":
+            upperTriggerThreshold = self.degreeBaseline + self.threshold
+            lowerTriggerThreshold = self.degreeBaseline - self.threshold
+        else:
+            upperTriggerThreshold = 0 + self.threshold
+            lowerTriggerThreshold = 0 - self.threshold
+        self.logger.debug("Upper and lower baseline for the {} are:  {} for upper  and :  {} for lower ".format(entropyType, upperTriggerThreshold, lowerTriggerThreshold))
 
         trigger = False
         for i in range(1, len(entropyValues)):
             if entropyValues[i] >= upperTriggerThreshold or entropyValues[i] <= lowerTriggerThreshold:
-                self.logger.debug("Trigger detection on entropy value: {} ".format(entropyValues[i]))
+                self.logger.debug("Trigger detection on {} entropy value: {} ".format(entropyType, entropyValues[i]))
 
                 trigger = True
                 break
@@ -340,9 +355,9 @@ class Sensor(object):
         database.create_bulk_alert_entry(c, bulk_insert)
 
     #generate a new response for the current time
-    def _generateResponse(self, theTime):
+    def _generateResponse(self, theTime, entropyType):
         response_data = [randrange(1000), self.sensorId, self.threshold, self.timeWindow, theTime]
-        self.logger.debug("Generating response with data: {}".format(response_data))
+        self.logger.debug("Generating response with data: {} and from entropy type {}".format(response_data, entropyType))
         database.create_response_entry(c, response_data )
 
     #process the result of the entropy profilers and determine whether an alert needs to be generated
@@ -358,32 +373,37 @@ class Sensor(object):
         firstPacketPortId = self.getLatestEntropyPort()
         firstPacketDegreeId = self.getLatestEntropyDegree()
         #process each entropy feature
-        entropies = []
-        entropies.append(self._processAddressEntropy(firstPacketAddressId, lastPacketId))
-        self.logger.debug(" Finsihed address Entropy")
+        entropies = {}
+        entropies["address"] = self._processAddressEntropy(firstPacketAddressId, lastPacketId)
+        self.logger.debug(" Finished address Entropy")
 
-        entropies.append(self._processPortEntropy(firstPacketPortId, lastPacketId))
-        self.logger.debug(" Finsihed port Entropy")
+        entropies["port"] = self._processPortEntropy(firstPacketPortId, lastPacketId)
+        self.logger.debug(" Finished port Entropy")
 
-        entropies.append(self._processDegreeEntropy(firstPacketDegreeId, lastPacketId))
-        self.logger.debug(" Finsihed degree Entropy")
+        entropies["degree"] = self._processDegreeEntropy(firstPacketDegreeId, lastPacketId)
+        self.logger.debug(" Finished degree Entropy")
 
         self.logger.debug("Processing all entropy values {}".format(entropies))
+
+        #for an alert to be raised, at least 'alertThreshold' entropies from the cumulative total of Address, Port and Degree must surpass the trigger threshold
+        triggerCount = 0
+        alertThreshold = 1
         #for the entropy values obtained, determine whether the sensor could generate an alert
-        for entropyData in entropies:
+        for entropyType, entropyData in entropies.items():
             self.logger.debug("Checking is entropy data value {} should trigger an alert ".format(entropyData))
-            trigger = self._checkTriggerCrossed( entropyData)
-            if trigger:
-                self.logger.debug("Triggering on the sensor: {}".format(self.sensorId))
+            trigger = self._checkTriggerCrossed( entropyData, entropyType)
+            triggerCount += 1
+            if triggerCount >= alertThreshold:
+                self.logger.debug("Alert threshold {} reached, rasing an alerton the sensor: {}".format(alertThreshold, self.sensorId))
                 #get the current timestamp 
                 theTime = self.getCurrentTimeStamp()
                 firstPacketId = entropyData[0]
                 self._generateReportsOn(firstPacketId, lastPacketId)
-                self._generateResponse( theTime)
+                self._generateResponse( theTime, entropyType)
 
 if __name__ == '__main__':
     try:
-        sensorTest = Sensor("QRadar-Content", 5, 2, 0.5, 0.3)
+        sensorTest = Sensor("QRadar-Content", 5, 2, 0.5, 0.6, 0.7, 0.3)
         sensorTest.processEntropyProfiler()
     except:
         raise 

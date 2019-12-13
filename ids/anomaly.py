@@ -37,8 +37,8 @@ class Anomaly(object):
         self.processProfilers()
         global conn, c
 
-    def performAnomalyProfiling(self, name, sensorId, timeWindow, baseline, threshold):
-        AnomalyProfiler = Sensor(name, sensorId, timeWindow, baseline, threshold)
+    def performAnomalyProfiling(self, name, sensorId, timeWindow, addressBaseline, portBaseline, degreeBaseline, threshold):
+        AnomalyProfiler = Sensor(name, sensorId, timeWindow, addressBaseline, portBaseline, degreeBaseline, threshold)
         sleepTime = timeWindow * 60
         while True:
             #sleep for the time window specified in the profiler
@@ -57,10 +57,12 @@ class Anomaly(object):
             name = profiler["SensorName"]
             sensorId = profiler["Id"]
             timeWindow = profiler["TimeWindow"]
-            baseline = profiler["Baseline"]
+            addressBaseline = profiler["AddressBaseline"]
+            portBaseline = profiler["PortBaseline"]
+            degreeBaseline = profiler["DegreeBaseline"]
             threshold = profiler["Threshold"]
-            self.logger.info("Starting up new profiler with name:{} id:{} timeWindow:{} baseline:{} threshold:{} ".format(name, sensorId, timeWindow, baseline, threshold))
-            thread = Thread(target = self.performAnomalyProfiling, args = (name, sensorId, timeWindow, baseline, threshold))
+            self.logger.info("Starting up new profiler with name:{} id:{} timeWindow:{} addressBaseline:{} portBaseline:{} degreeBaseline:{} threshold:{} ".format(name, sensorId, timeWindow, addressBaseline, portBaseline, degreeBaseline, threshold))
+            thread = Thread(target = self.performAnomalyProfiling, args = (name, sensorId, timeWindow, addressBaseline, portBaseline, degreeBaseline, threshold))
             thread_list.append(thread)
     
         # from the main-thread, starts child threads

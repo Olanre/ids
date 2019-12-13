@@ -40,7 +40,7 @@ def create_sensor(c, data):
 
 #Create an anomaly profiler
 def create_anomaly_entry(c, data):
-    sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, EntropyBaseline, MinuteTimeWindow)
+    sql = ''' INSERT INTO anomalyProfiler(Sensor, EntropyThreshold, AddressEntropyBaseline, PortEntropyBaseline, DegreeEntropyBaseline, MinuteTimeWindow)
               VALUES (?,?,?,?) '''
     c.execute(sql, data)
 
@@ -321,7 +321,7 @@ def select_latest_degree_entropy(c, sensorId):
 ############################################################################################################################################
 # Selection for all anomaly profiler
 def select_from_profiler(c):
-    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.EntropyBaseline as Baseline, m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.AddressEntropyBaseline as AdressBaseline, m.PortEntropyBaseline as PortBaseline, m.DegreeEntropyBaseline as DegreeBaseline,  m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
     s.SensorId = m.sensor  """
     c.execute(sql)
     rows = c.fetchall()
@@ -336,7 +336,7 @@ def select_packets_by_profiler_sensorid(c, sensor_id):
     return rows
 
 def select_profiler_by_sensor_id(c, sensor_id):
-    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.EntropyBaseline as Baseline, m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
+    sql = """SELECT s.Name as SensorName, s.Version as Version, m.Sensor as Id, m.EntropyThreshold as Threshold, m.AddressEntropyBaseline as AdressBaseline, m.PortEntropyBaseline as PortBaseline, m.DegreeEntropyBaseline as DegreeBaseline,  m.MinuteTimeWindow as TimeWindow from sensor s,  anomalyProfiler m where 
     s.SensorId = m.sensor  and m.sensor = ? """
     c.execute(sql,[sensor_id])
     rows = c.fetchall()
@@ -435,7 +435,9 @@ def main():
         CREATE TABLE IF NOT EXISTS anomalyProfiler (
             Sensor INTEGER NOT NULL PRIMARY KEY,
             EntropyThreshold REAL NOT NULL,
-            EntropyBaseline REAL NOT NULL,
+            AddressEntropyBaseline REAL NOT NULL,
+            PortEntropyBaseline REAL NOT NULL,
+            DegreeEntropyBaseline REAL NOT NULL,
             MinuteTimeWindow INTEGER NOT NULL,
             FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
         ); 
