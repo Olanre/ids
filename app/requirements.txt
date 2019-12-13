@@ -1,0 +1,7 @@
+Flask>=1.1.1
+httpagentparser
+gunicorn>=19,<20
+Flask-SSLify>=0.1.5,<0.2
+pusher
+pyshark
+pandas

@@ -1,6 +1,0 @@
-Name,CIDR,Class
-DMZ-Hong Kong,10.10.0.0/16,Class A
-DMZ-San-Jose,192.168.0.0/16,Class C
-Finance-NYC,172.16.0.0/16,Class B
-Engineering-Seattle,172.18.0.0/16,Class B
-GoDaddy,100.90.23.45/1,Internet

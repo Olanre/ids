@@ -1,0 +1,163 @@
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS packets (
+            PacketId INTEGER PRIMARY KEY AUTOINCREMENT,
+            TTL INTEGER NOT NULL,
+            DestinationAddr VARCHAR(20) NOT NULL,
+            Protocol VARCHAR(30) NOT NULL,
+            TotalLength INTEGER NOT NULL,
+            SourceAddr VARCHAR(20) NOT NULL,
+            EthernetProtocol VARCHAR(25) NOT NULL,
+            EthernetSrcAddr VARHAR(20) NOT NULL,
+            EthernetDstAddr VARCHAR(20) NOT NULL,
+            FrameLength INTEGER NOT NULL,
+            FrameType VARCHAR(14) NOT NULL,
+            FrameNumber INTEGER NOT NULL,
+            ArrivalTime TIMESTAMP NOT NULL,
+            InterfaceId VARCHAR(30) NOT NULL,
+            Length INTEGER NOT NULL,
+            DstPort INTEGER NOT NULL,
+            SrcPort INTEGER NOT NULL,
+            Flags VARCHAR(20)  NOT NULL,
+            RawData TEXT
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS network (
+            NetworkId INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name VARCHAR(50) NOT NULL ,
+            CIDR VARCHAR(40) NOT NULL,
+            Class VARCHAR(20)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS sensor (
+            SensorId INTEGER PRIMARY KEY AUTOINCREMENT,
+            Name VARCHAR(30) NOT NULL,
+            Version VARCHAR (30)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS anomalyProfiler (
+            Sensor INTEGER NOT NULL PRIMARY KEY,
+            EntropyThreshold REAL NOT NULL,
+            AddressEntropyBaseline REAL NOT NULL,
+            PortEntropyBaseline REAL NOT NULL,
+            DegreeEntropyBaseline REAL NOT NULL,
+            MinuteTimeWindow INTEGER NOT NULL,
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS residesin (
+            Packet  INTEGER NOT NULL,
+            Network INTEGER NOT NULL,
+            AssignmentDate TIMESTAMP NOT NULL,
+            FOREIGN KEY(Packet) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Network) REFERENCES Network(NetworkId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS reportson (
+            Sensor  INTEGER NOT NULL,
+            Packet  INTEGER NOT NULL,
+            FOREIGN KEY(Packet) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS response (
+            ResponseCode INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Threshold INTEGER NOT NULL,
+            TimeSpan  INTEGER NOT NULL,
+            TriggerDate TIMESTAMP NOT NULL,
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS notification (
+            Response INTEGER NOT NULL PRIMARY KEY,
+            Name VARCHAR(50) NOT NULL,
+            NotificationHubId INTEGER NOT NULL,
+            FOREIGN KEY(Response) REFERENCES Response(ResponseCode)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS email (
+            Response INTEGER NOT NULL PRIMARY KEY,
+            RecipientAddress VARCHAR(50) NOT NULL,
+            EmailMessage LONGTEXT NOT NULL,
+            FOREIGN KEY(Response) REFERENCES Response(ResponseCode)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS addressEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            SrcPacketScore  REAL NOT NULL,
+            DstPacketScore REAL NOT NULL,
+            SrcByteScore REAL NOT NULL,
+            DstByteScore REAL NOT NULL,            
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS portEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            SrcPacketScore  REAL NOT NULL,
+            DstPacketScore REAL NOT NULL,
+            SrcByteScore REAL NOT NULL,
+            DstByteScore REAL NOT NULL,
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Executing the following sql query:	 
+        CREATE TABLE IF NOT EXISTS degreeEntropy (
+            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Sensor  INTEGER NOT NULL,
+            Time  TIMESTAMP NOT NULL,
+            FirstPacket INTEGER NOT NULL,
+            LastPacket INTEGER NOT NULL,
+            inDegreeScore  REAL NOT NULL,
+            outDegreeScore REAL NOT NULL,           
+            FOREIGN KEY(FirstPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(LastPacket) REFERENCES Packet(PacketId),
+            FOREIGN KEY(Sensor) REFERENCES Sensor(SensorId)
+        ); 
+    
+
+
+Connection established!

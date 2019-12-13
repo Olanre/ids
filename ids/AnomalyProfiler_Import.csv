@@ -1,4 +1,0 @@
-Sensor,EntropyThreshold,AddressEntropyBaseline,PortEntropyBaseline,DegreeEntropyBaseline,MinuteTimeWindow
-1,0.3,0.55,0.60,0.65,1
-2,0.25,0.55,0.60,0.75,5
-6,0.2,0.6,0.65,0.75,15
